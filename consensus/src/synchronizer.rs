@@ -160,10 +160,10 @@ impl Synchronizer {
             Some(b) => b,
             None => return Ok(None),
         };
-        let b0 = self
-            .get_parent_block(&b1)
-            .await?
-            .expect("We should have all ancestors of delivered blocks");
+        let b0 = match self.get_parent_block(&b1).await? {
+            Some(b) => b,
+            None => return Ok(None),
+        };
         Ok(Some((b0, b1)))
     }
 }

@@ -1,7 +1,7 @@
 {
     "key": {
-        "name": "dcz",
-        "path": "/home/yucz/.ssh/id_rsa"
+        "name": "DGJG",
+        "path": "/Users/dgjg/.ssh/aws"
     },
     "ports": {
         "smvba": 9000,
@@ -11,16 +11,17 @@
     },
     "repo": {
         "name": "parbft-parbft1-rust",
-        "url": "https://github.com/ac-dcz/parbft-parbft1-rust",
+        "url": "https://github.com/ac-dcz/parbft-parbft1-rust.git",
         "branch": "master"
     },
     "instances": {
-        "type": "m5d.xlarge",
+        "type": "m5d.2xlarge",
         "regions": [
-            "us-east-2",
+            "us-east-1",
+            "us-west-1",
+            "ap-southeast-2",
             "eu-north-1",
-            "ap-northeast-1",
-            "ap-southeast-2"
+            "ap-northeast-1"
         ]
     }
 }

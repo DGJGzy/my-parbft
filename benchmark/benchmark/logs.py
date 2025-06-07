@@ -46,12 +46,14 @@ class LogParser:
         self.commits = self._merge_results([x.items() for x in commits])
         self.h_proposals = self._merge_results([x.items() for x in h_proposals])
         self.h_commits = self._merge_results([x.items() for x in h_commits])
-        sizes = self._merge_results([x.items() for x in sizes])
+        # sizes = self._merge_results([x.items() for x in sizes])
         
+        # self.sizes = {
+        #     k: sizes[k[:44]] for k,_ in self.h_commits.items() if k[:44] in sizes
+        # }
         self.sizes = {
-            k: sizes[k[:44]] for k,_ in self.h_commits.items() if k[:44] in sizes
+            k: v for x in sizes for k, v in x.items() if k in self.commits
         }
-
         self.timeouts = max(timeouts)
 
         # Check whether clients missed their target rate.
@@ -170,7 +172,7 @@ class LogParser:
         return tps, bps, duration
 
     def _consensus_latency(self):
-        latency = [c - self.h_proposals[d] for d, c in self.h_commits.items()]
+        latency = [c - self.proposals[d] for d, c in self.commits.items()]
         return mean(latency) if latency else 0
 
     def _end_to_end_throughput(self):
@@ -278,8 +280,8 @@ class LogParser:
         assert isinstance(t_filename, str)
         with open(r_filename, 'a') as f:
             f.write(self.result())
-        with open(t_filename, 'a') as f:
-            f.write(self.transactionsWithTime())
+        # with open(t_filename, 'a') as f:
+        #     f.write(self.transactionsWithTime())
 
     @classmethod
     def process(cls, directory, faults=0, protocol=0, ddos=False):

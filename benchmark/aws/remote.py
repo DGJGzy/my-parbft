@@ -244,7 +244,7 @@ class Bench:
         # Wait for all transactions to be processed.
         duration = bench_parameters.duration
         for _ in progress_bar(range(100), prefix=f'Running benchmark ({duration} sec):'):
-            sleep(ceil(duration / 100))
+            sleep(duration / 100)
         self.kill(hosts=hosts, delete_logs=False)
 
     def _logs(self, hosts, faults, protocol, ddos):
@@ -333,6 +333,7 @@ class Bench:
                 # Run the benchmark.
                 for i in range(bench_parameters.runs):
                     Print.heading(f'Run {i+1}/{bench_parameters.runs}')
+                    print(f'Host: {hosts}')
                     try:
                         self._run_single(
                             hosts, r, bench_parameters, node_parameters, debug

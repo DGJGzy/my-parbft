@@ -10,8 +10,8 @@
         "front": 6000
     },
     "repo": {
-        "name": "parbft-parbft1-rust",
-        "url": "https://github.com/ac-dcz/parbft-parbft1-rust.git",
+        "name": "my-parbft",
+        "url": "https://github.com/DGJGzy/my-parbft.git",
         "branch": "master"
     },
     "instances": {

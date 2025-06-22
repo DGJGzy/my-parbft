@@ -12,9 +12,9 @@ from aws.remote import Bench, BenchError
 def local(ctx):
     ''' Run benchmarks on localhost '''
     bench_params = {
-        'nodes': 10,
-        'rate': 40_000,
-        'tx_size': 16,
+        'nodes': 7,
+        'rate': 100000,
+        'tx_size': 256,
         'faults': 0,
         'duration': 10,
     }
@@ -33,20 +33,20 @@ def local(ctx):
         'mempool': {
             'queue_capacity': 100_000,
             'sync_retry_delay': 100_000,
-            'max_payload_size': 15_625,
+            'max_payload_size': 256_000,
             'min_block_delay': 0
         },
         'protocol': 1, # 0 for 2-chain HotStuff, 1 for ParBFT, 2 for SMVBA
     }
     try:
-        ret = LocalBench(bench_params, node_params).run(debug=False).result()
+        ret = LocalBench(bench_params, node_params).run(debug=True).result()
         print(ret)
     except BenchError as e:
         Print.error(e)
 
 
 @task
-def create(ctx, nodes=4): # 创建机器实例  nodes表示在一台机器上跑多少个节点
+def create(ctx, nodes=2): # 创建机器实例  nodes表示在一台机器上跑多少个节点
     ''' Create a testbed'''
     try:
         InstanceManager.make().create_instances(nodes)
@@ -103,19 +103,19 @@ def install(ctx):
 def remote(ctx):
     ''' Run benchmarks on AWS '''
     bench_params = {
-        'nodes': [16],
-        'rate': [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000],
+        'nodes': [7],
+        'rate': [60000, 80000, 100000, 120000],
         'tx_size': 256,
         'faults': 0, 
-        'duration': 30,
-        'runs': 2,
+        'duration': 100,
+        'runs': 1,
     }
     node_params = {
         'consensus': {
-            'timeout_delay': 60_000,
+            'timeout_delay': 10_000,
             'sync_retry_delay': 100_000,
             'max_payload_size': 1_000,
-            'min_block_delay': 50,
+            'min_block_delay': 25,
             'network_delay': 20_000, # message delay on the leaders' proposals during DDoS
             'ddos': False, # True for DDoS attack on the leader, False otherwise
             'random_ddos': False,
@@ -126,12 +126,12 @@ def remote(ctx):
             'queue_capacity': 100_000,
             'sync_retry_delay': 100_000,
             'max_payload_size': 256_000,
-            'min_block_delay': 50
+            'min_block_delay': 25
         },
         'protocol': 1, # 0 for 2-chain HotStuff, 1 for Ditto, 2 for 2-chain VABA
     }
     try:
-        Bench(ctx).run(bench_params, node_params, debug=False)
+        Bench(ctx).run(bench_params, node_params, debug=True)
     except BenchError as e:
         Print.error(e)
 

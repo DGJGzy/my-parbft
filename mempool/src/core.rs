@@ -38,8 +38,10 @@ pub struct Core {
     core_channel: Receiver<MempoolMessage>,
     consensus_channel: Receiver<ConsensusMempoolMessage>,
     network_channel: Sender<NetMessage>,
-    opt_queue: HashSet<Digest>,
-    pes_queue: HashSet<Digest>,
+    opt_own_queue: HashSet<Digest>,
+    opt_other_queue: HashSet<Digest>,
+    pes_own_queue: HashSet<Digest>,
+    pes_other_queue: HashSet<Digest>,
 }
 
 impl Core {
@@ -55,8 +57,10 @@ impl Core {
         consensus_channel: Receiver<ConsensusMempoolMessage>,
         network_channel: Sender<NetMessage>,
     ) -> Self {
-        let opt_queue = HashSet::with_capacity(parameters.queue_capacity);
-        let pes_queue = HashSet::with_capacity(parameters.queue_capacity * 3 / 2);
+        let opt_own_queue = HashSet::with_capacity(parameters.queue_capacity);
+        let opt_other_queue = HashSet::with_capacity(parameters.queue_capacity);
+        let pes_own_queue = HashSet::with_capacity(parameters.queue_capacity * 3 / 2);
+        let pes_other_queue = HashSet::with_capacity(parameters.queue_capacity * 3 / 2);
         Self {
             name,
             committee,
@@ -66,8 +70,10 @@ impl Core {
             core_channel,
             consensus_channel,
             network_channel,
-            opt_queue,
-            pes_queue,
+            opt_own_queue,
+            opt_other_queue,
+            pes_own_queue,
+            pes_other_queue,
             payload_maker,
         }
     }
@@ -99,8 +105,10 @@ impl Core {
     ) -> MempoolResult<()> {
         // Drop the transaction if our mempool is full.
         ensure!(
-            self.opt_queue.len() < self.opt_queue.capacity()
-                && self.pes_queue.len() < self.pes_queue.capacity(),
+            self.opt_own_queue.len() < self.opt_own_queue.capacity()
+                && self.opt_other_queue.len() < self.opt_other_queue.capacity()
+                && self.pes_own_queue.len() < self.pes_own_queue.capacity()
+                && self.pes_other_queue.len() < self.pes_other_queue.capacity(),
             MempoolError::MempoolFull
         );
 
@@ -136,7 +144,8 @@ impl Core {
     async fn handle_own_payload(&mut self, payload: Payload) -> MempoolResult<()> {
         // Drop the transaction if our mempool is full.
         ensure!(
-            self.opt_queue.len() < self.parameters.queue_capacity,
+            self.opt_own_queue.len() < self.parameters.queue_capacity
+            && self.pes_own_queue.len() < self.parameters.queue_capacity,
             MempoolError::MempoolFull
         );
 
@@ -144,8 +153,8 @@ impl Core {
         // we will add to the queue.
         let digest = payload.digest();
         self.process_own_payload(&digest, payload).await?; //payload存入queue中
-        self.opt_queue.insert(digest.clone());
-        self.pes_queue.insert(digest);
+        self.opt_own_queue.insert(digest.clone());
+        self.pes_own_queue.insert(digest);
         Ok(())
     }
 
@@ -173,8 +182,8 @@ impl Core {
         self.store_payload(digest.to_vec(), &payload).await;
 
         // Add the payload to the queue.
-        self.opt_queue.insert(digest.clone());
-        self.pes_queue.insert(digest);
+        self.opt_other_queue.insert(digest.clone());
+        self.pes_other_queue.insert(digest);
         Ok(())
     }
 
@@ -194,7 +203,9 @@ impl Core {
     }
 
     async fn get_payload(&mut self, max: usize, tag: u8) -> MempoolResult<Vec<Digest>> {
-        if (tag == OPT && self.opt_queue.is_empty()) || (tag == PES && self.pes_queue.is_empty()) {
+        if (tag == OPT && self.opt_own_queue.is_empty() && self.opt_other_queue.is_empty()) 
+            || (tag == PES && self.pes_own_queue.is_empty() && self.pes_other_queue.is_empty()) 
+        {
             if let Some(payload) = self.payload_maker.make().await {
                 let digest = payload.digest();
                 self.process_own_payload(&digest, payload).await?;
@@ -204,27 +215,71 @@ impl Core {
             }
         } else if tag == OPT {
             let digest_len = Digest::default().size();
-            let digests = self
-                .opt_queue
+            let mut payload_len = max / digest_len;
+            let mut digests = Vec::new();
+    
+            if !self.opt_own_queue.is_empty() {
+                let opt_digests: Vec<_> = self
+                    .opt_own_queue
+                    .iter()
+                    .take(payload_len)
+                    .cloned()
+                    .collect();
+    
+                for x in &opt_digests {
+                    self.opt_own_queue.remove(x);  // 去重
+                }
+                digests.extend(opt_digests);  // 直接追加已克隆的 digests
+                payload_len -= digests.len(); // 减去实际添加的数量
+            }
+    
+            let opt_other_digests: Vec<_> = self
+                .opt_other_queue
                 .iter()
-                .take(max / digest_len)
+                .take(payload_len)
                 .cloned()
                 .collect();
-            for x in &digests {
-                self.opt_queue.remove(x); //去重
+    
+            for x in &opt_other_digests {
+                self.opt_other_queue.remove(x); // 去重
             }
+    
+            digests.extend(opt_other_digests);
+
             Ok(digests)
         } else {
             let digest_len = Digest::default().size();
-            let digests = self
-                .pes_queue
+            let mut payload_len = max / digest_len;
+            let mut digests = Vec::new();
+    
+            if !self.pes_own_queue.is_empty() {
+                let pes_digests: Vec<_> = self
+                    .pes_own_queue
+                    .iter()
+                    .take(payload_len)
+                    .cloned()
+                    .collect();
+    
+                for x in &pes_digests {
+                    self.opt_own_queue.remove(x);  // 去重
+                }
+                digests.extend(pes_digests);  // 直接追加已克隆的 digests
+                payload_len -= digests.len(); // 减去实际添加的数量
+            }
+    
+            let pes_other_digests: Vec<_> = self
+                .pes_other_queue
                 .iter()
-                .take(max / digest_len)
+                .take(payload_len)
                 .cloned()
                 .collect();
-            for x in &digests {
-                self.pes_queue.remove(x); //去重
+    
+            for x in &pes_other_digests {
+                self.opt_other_queue.remove(x); // 去重
             }
+    
+            digests.extend(pes_other_digests);
+            
             Ok(digests)
         }
     }
@@ -236,7 +291,10 @@ impl Core {
     async fn cleanup(&mut self, digests: Vec<Digest>, round: SeqNumber) {
         self.synchronizer.cleanup(round).await;
         for x in &digests {
-            self.opt_queue.remove(x);
+            self.opt_own_queue.remove(x);
+            self.opt_other_queue.remove(x);
+            self.pes_own_queue.remove(x);
+            self.pes_other_queue.remove(x);
         }
     }
 

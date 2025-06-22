@@ -42,27 +42,37 @@ class PathMaker:
         return f'.db-{i}'
 
     @staticmethod
-    def logs_path():
-        return 'logs'
+    def logs_path(ts):
+        assert isinstance(ts, str)
+        return f'logs/{ts}'
 
     @staticmethod
-    def node_log_file(i):
+    def node_log_file(i, ts):
         assert isinstance(i, int) and i >= 0
-        return join(PathMaker.logs_path(), f'node-{i}.log')
+        return join(PathMaker.logs_path(ts), f'node-{i}.log')
 
     @staticmethod
-    def client_log_file(i):
+    def client_log_file(i, ts):
         assert isinstance(i, int) and i >= 0
-        return join(PathMaker.logs_path(), f'client-{i}.log')
+        return join(PathMaker.logs_path(ts), f'client-{i}.log')
 
     @staticmethod
-    def results_path():
-        return 'results'
+    def results_path(ts):
+        assert isinstance(ts, str)
+        return f'results/{ts}'
 
     @staticmethod
-    def result_file(nodes, rate, tx_size, faults):
+    def result_file(nodes, rate, tx_size, faults, ts, flag=2):
+        if flag == 0:
+            return join(
+                PathMaker.results_path(ts), f'bench-{nodes}-{rate}-{tx_size}-{faults}-nondup.txt'
+            )
+        if flag == 1:
+            return join(
+                PathMaker.results_path(ts), f'bench-{nodes}-{rate}-{tx_size}-{faults}-dup.txt'
+            )
         return join(
-            PathMaker.results_path(), f'bench-{nodes}-{rate}-{tx_size}-{faults}.txt'
+            PathMaker.results_path(ts), f'bench-{nodes}-{rate}-{tx_size}-{faults}.txt'
         )
 
     @staticmethod

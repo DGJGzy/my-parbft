@@ -350,6 +350,7 @@ impl Core {
             tag,
         )
         .await;
+        debug!("Created {} epoch {} tag {}", block, block.epoch, block.tag);
         if !block.payload.is_empty() {
             info!("Created {} epoch {}", block, block.epoch);
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from os import error
 from fabric import Connection, ThreadingGroup as Group
 from fabric.exceptions import GroupException
@@ -12,7 +13,7 @@ import subprocess
 from benchmark.config import Committee, Key, TSSKey, NodeParameters, BenchParameters, ConfigError
 from benchmark.utils import BenchError, Print, PathMaker, progress_bar
 from benchmark.commands import CommandMaker
-from benchmark.logs import LogParser, ParseError
+from benchmark.logs import LogParser, ParseError, LogParser1
 from aws.instance import InstanceManager
 
 
@@ -85,11 +86,11 @@ class Bench:
         assert isinstance(hosts, list)
         assert isinstance(delete_logs, bool)
         hosts = hosts if hosts else self.manager.hosts(flat=True)
-        delete_logs = CommandMaker.clean_logs() if delete_logs else 'true'
-        cmd = [delete_logs, f'({CommandMaker.kill()} || true)']
+        # delete_logs = CommandMaker.clean_logs() if delete_logs else 'true'
+        cmd = f'({CommandMaker.kill()} || true)'
         try:
             g = Group(*hosts, user='ubuntu', connect_kwargs=self.connect)
-            g.run(' && '.join(cmd), hide=True)
+            g.run(cmd, hide=True)
         except GroupException as e:
             raise BenchError('Failed to kill nodes', FabricError(e))
 
@@ -191,7 +192,7 @@ class Bench:
 
         return committee
 
-    def _run_single(self, hosts, rate, bench_parameters, node_parameters, debug=False):
+    def _run_single(self, hosts, rate, bench_parameters, node_parameters, ts, debug=False):
         Print.info('Booting testbed...')
 
         # Kill any potentially unfinished run and delete logs.
@@ -200,6 +201,11 @@ class Bench:
         Print.info('Killed previous instances')
         sleep(10)
 
+        # Make dir
+        cmd = f'{CommandMaker.make_logs_and_result_dir(ts)}'
+        g = Group(*hosts, user='ubuntu', connect_kwargs=self.connect)
+        g.run(cmd, hide=True)
+        
         # Run the clients (they will wait for the nodes to be ready).
         # Filter all faulty nodes from the client addresses (or they will wait
         # for the faulty nodes to be online).
@@ -208,7 +214,7 @@ class Bench:
         rate_share = ceil(rate / committee.size())  # Take faults into account.
         timeout = node_parameters.timeout_delay
         
-        client_logs = [PathMaker.client_log_file(i) for i in range(len(hosts))]
+        client_logs = [PathMaker.client_log_file(i, ts) for i in range(len(hosts))]
         for host, addr, log_file in zip(hosts, addresses, client_logs):
             cmd = CommandMaker.run_client(
                 addr,
@@ -225,7 +231,7 @@ class Bench:
         # Run the nodes.
         key_files = [PathMaker.key_file(i) for i in range(len(hosts))]
         dbs = [PathMaker.db_path(i) for i in range(len(hosts))]
-        node_logs = [PathMaker.node_log_file(i) for i in range(len(hosts))]
+        node_logs = [PathMaker.node_log_file(i, ts) for i in range(len(hosts))]
         threshold_key_files = [PathMaker.threshold_key_file(i) for i in range(len(hosts))]
         for host, key_file, threshold_key_file, db, log_file in zip(hosts, key_files, threshold_key_files, dbs, node_logs):
             cmd = CommandMaker.run_node(
@@ -247,23 +253,23 @@ class Bench:
             sleep(duration / 100)
         self.kill(hosts=hosts, delete_logs=False)
 
-    def _logs(self, hosts, faults, protocol, ddos):
+    def _logs(self, hosts, faults, protocol, ddos, ts):
         # Delete local logs (if any).
-        cmd = CommandMaker.clean_logs()
-        subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
+        # cmd = CommandMaker.clean_logs()
+        # subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
 
         # Download log files.
         progress = progress_bar(hosts, prefix='Downloading logs:')
         for i, host in enumerate(progress):
             c = Connection(host, user='ubuntu', connect_kwargs=self.connect)
-            c.get(PathMaker.node_log_file(i), local=PathMaker.node_log_file(i))
+            c.get(PathMaker.node_log_file(i, ts), local=PathMaker.node_log_file(i, ts))
             c.get(
-                PathMaker.client_log_file(i), local=PathMaker.client_log_file(i)
+                PathMaker.client_log_file(i, ts), local=PathMaker.client_log_file(i, ts)
             )
 
         # Parse logs and return the parser.
         Print.info('Parsing logs and computing performance...')
-        return LogParser.process(PathMaker.logs_path(), faults=faults, protocol=protocol, ddos=ddos)
+        return LogParser.process(PathMaker.logs_path(ts), faults=faults, protocol=protocol, ddos=ddos)
 
     def run(self, bench_parameters_dict, node_parameters_dict, debug=False):
         assert isinstance(debug, bool)
@@ -314,7 +320,7 @@ class Bench:
             for r in bench_parameters.rate:
                 Print.heading(f'\nRunning {n} nodes (input rate: {r:,} tx/s)')
                 hosts = selected_hosts[:n]
-
+                print(hosts)
                 # # Upload all configuration files.
                 # try:
                 #     self._config(hosts, node_parameters)
@@ -330,18 +336,25 @@ class Bench:
                 protocol = node_parameters.protocol
                 ddos = node_parameters.ddos
 
+                ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+                # Make dir
+                cmd = CommandMaker.make_logs_and_result_dir(ts)
+                subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
                 # Run the benchmark.
                 for i in range(bench_parameters.runs):
                     Print.heading(f'Run {i+1}/{bench_parameters.runs}')
-                    print(f'Host: {hosts}')
                     try:
                         self._run_single(
-                            hosts, r, bench_parameters, node_parameters, debug
+                            hosts, r, bench_parameters, node_parameters, ts, debug
                         )
-                        self._logs(hosts, faults, protocol, ddos).print(
-                            PathMaker.result_file(n, r, bench_parameters.tx_size, faults),
-                            PathMaker.txs_file(n, r, bench_parameters.tx_size, faults)
-                        )
+                        self._logs(hosts, faults, protocol, ddos, ts).print(PathMaker.result_file(
+                            n, r, bench_parameters.tx_size, faults, ts, 0
+                        ))
+                        # Parse logs and return the parser again.
+                        Print.info('Parsing logs and computing performance again...')
+                        LogParser1.process(PathMaker.logs_path(ts), faults=faults, protocol=protocol, ddos=ddos).print(PathMaker.result_file(
+                            n, r, bench_parameters.tx_size, faults, ts, 1
+                        ))
                     except (subprocess.SubprocessError, GroupException, ParseError) as e:
                         self.kill(hosts=hosts)
                         if isinstance(e, GroupException):

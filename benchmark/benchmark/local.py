@@ -5,7 +5,7 @@ from time import sleep
 
 from benchmark.commands import CommandMaker
 from benchmark.config import Key, TSSKey, LocalCommittee, NodeParameters, BenchParameters, ConfigError
-from benchmark.logs import LogParser, ParseError
+from benchmark.logs import LogParser1, ParseError
 from benchmark.utils import Print, BenchError, PathMaker
 
 
@@ -46,10 +46,14 @@ class LocalBench:
             nodes, rate = self.nodes[0], self.rate[0]
 
             # Cleanup all files.
-            cmd = f'{CommandMaker.clean_logs()} ; {CommandMaker.cleanup()}'
+            cmd = f'{CommandMaker.cleanup()}'
             subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
             sleep(0.5) # Removing the store may take time.
 
+            # Make dir
+            cmd = CommandMaker.make_logs_and_result_dir('local')
+            subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
+            
             # Recompile the latest code.
             cmd = CommandMaker.compile().split()
             subprocess.run(cmd, check=True, cwd=PathMaker.node_crate_path())
@@ -91,7 +95,7 @@ class LocalBench:
             addresses = committee.front
             rate_share = ceil(rate / nodes)
             timeout = self.node_parameters.timeout_delay
-            client_logs = [PathMaker.client_log_file(i) for i in range(nodes)]
+            client_logs = [PathMaker.client_log_file(i, 'local') for i in range(nodes)]
             for addr, log_file in zip(addresses, client_logs):
                 cmd = CommandMaker.run_client(
                     addr,
@@ -117,7 +121,7 @@ class LocalBench:
 
             # Run the nodes.
             dbs = [PathMaker.db_path(i) for i in range(nodes)]
-            node_logs = [PathMaker.node_log_file(i) for i in range(nodes)]
+            node_logs = [PathMaker.node_log_file(i, 'local') for i in range(nodes)]
             threshold_key_files = [PathMaker.threshold_key_file(i) for i in range(nodes)]
             for key_file, threshold_key_file, db, log_file in zip(key_files, threshold_key_files, dbs, node_logs):
                 cmd = CommandMaker.run_node(
@@ -141,7 +145,7 @@ class LocalBench:
 
             # Parse logs and return the parser.
             Print.info('Parsing logs...')
-            return LogParser.process('./logs', self.faults, self.node_parameters.protocol, self.node_parameters.ddos)
+            return LogParser1.process('./logs/local', self.faults, self.node_parameters.protocol, self.node_parameters.ddos)
 
         except (subprocess.SubprocessError, ParseError) as e:
             self._kill_nodes()

@@ -8,12 +8,16 @@ class CommandMaker:
     @staticmethod
     def cleanup():
         return (
-            f'rm -r .db-* ; rm .*.json ; mkdir -p {PathMaker.results_path()}'
+            f'rm -r .db-* ; rm .*.json'
         )
 
     @staticmethod
-    def clean_logs():
-        return f'rm -r {PathMaker.logs_path()} ; mkdir -p {PathMaker.logs_path()}'
+    def make_logs_and_result_dir(ts):
+        return f'mkdir -p {PathMaker.logs_path(ts)} ; mkdir -p {PathMaker.results_path(ts)}'
+    
+    # @staticmethod
+    # def clean_logs():
+    #     return f'rm -r {PathMaker.logs_path()} ; mkdir -p {PathMaker.logs_path()}'
 
     @staticmethod
     def compile():

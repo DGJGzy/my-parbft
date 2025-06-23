@@ -336,13 +336,11 @@ impl Core {
 
     #[async_recursion]
     async fn generate_proposal(&mut self, qc: Option<QC>, tag: u8) -> Block {
-        let start = Instant::now();
         // Make a new block.
         let payload = self
             .mempool_driver
             .get(self.parameters.max_payload_size, tag)
             .await;
-        debug!("get time: {:?}", start.elapsed());
         let block = Block::new(
             qc.unwrap_or(QC::genesis()),
             self.name,
@@ -515,6 +513,7 @@ impl Core {
 
         // 在完全乐观情况下启动 SMVBA
         if self.is_optmistic() && self.pes_path {
+            let start = Instant::now();
             let round = self.smvba_current_round.entry(self.height).or_insert(1);
             let proof = SPBProof {
                 height: self.height,
@@ -522,12 +521,13 @@ impl Core {
                 round: round.clone(),
                 shares: Vec::new(),
             };
+            debug!("generate proof time: {:?}", start.elapsed());
             let start = Instant::now();
             let b = self.generate_proposal(Some(block.qc.clone()), PES).await;
             debug!("generate proposal time: {:?}", start.elapsed());
             let start = Instant::now();
             self.broadcast_pes_propose(b, proof).await?;
-            debug!("generate proposal time: {:?}", start.elapsed());
+            debug!("broadcast proposal time: {:?}", start.elapsed());
         }
 
         // Store the block only if we have already processed all its ancestors.

@@ -1920,24 +1920,24 @@ impl Core {
                         _=> Ok(()),
                     }
                 },
-                Some(message) = self.smvba_channel.recv() => {
-                    match message {
-                        ConsensusMessage::SPBPropose(value,proof)=> self.handle_spb_proposal(value,proof).await,
-                        ConsensusMessage::SPBVote(vote)=> self.handle_spb_vote(&vote).await,
-                        ConsensusMessage::SPBFinsh(value,proof)=> self.handle_spb_finish(value,proof).await,
-                        ConsensusMessage::SPBDone(done) => self.handle_smvba_done(done).await,
-                        ConsensusMessage::SMVBAPreVote(prevote) => self.handle_smvba_prevote(prevote).await,
-                        ConsensusMessage::SMVBAVote(mvote) => self.handle_smvba_mvote(mvote).await,
-                        ConsensusMessage::SMVBACoinShare(random_share)=> self.handle_smvba_rs(random_share).await,
-                        ConsensusMessage::SMVBAHalt(halt) => self.handle_smvba_halt(halt).await,
-                        ConsensusMessage::ParPrePare(prepare) => self.handle_par_prepare(prepare).await,
-                        ConsensusMessage::ParABAVal(aba_val) => self.handle_aba_val(aba_val).await,
-                        ConsensusMessage::ParABAOutput(aba_out) => self.handle_aba_output(aba_out).await,
-                        ConsensusMessage::ParLoopBack(block) => self.process_par_out(&block).await,
-                        ConsensusMessage::ParABACoinShare(rs) => self.handle_aba_rs(rs).await,
-                        _=> Ok(()),
-                    }
-                },
+                // Some(message) = self.smvba_channel.recv() => {
+                //     match message {
+                //         ConsensusMessage::SPBPropose(value,proof)=> self.handle_spb_proposal(value,proof).await,
+                //         ConsensusMessage::SPBVote(vote)=> self.handle_spb_vote(&vote).await,
+                //         ConsensusMessage::SPBFinsh(value,proof)=> self.handle_spb_finish(value,proof).await,
+                //         ConsensusMessage::SPBDone(done) => self.handle_smvba_done(done).await,
+                //         ConsensusMessage::SMVBAPreVote(prevote) => self.handle_smvba_prevote(prevote).await,
+                //         ConsensusMessage::SMVBAVote(mvote) => self.handle_smvba_mvote(mvote).await,
+                //         ConsensusMessage::SMVBACoinShare(random_share)=> self.handle_smvba_rs(random_share).await,
+                //         ConsensusMessage::SMVBAHalt(halt) => self.handle_smvba_halt(halt).await,
+                //         ConsensusMessage::ParPrePare(prepare) => self.handle_par_prepare(prepare).await,
+                //         ConsensusMessage::ParABAVal(aba_val) => self.handle_aba_val(aba_val).await,
+                //         ConsensusMessage::ParABAOutput(aba_out) => self.handle_aba_output(aba_out).await,
+                //         ConsensusMessage::ParLoopBack(block) => self.process_par_out(&block).await,
+                //         ConsensusMessage::ParABACoinShare(rs) => self.handle_aba_rs(rs).await,
+                //         _=> Ok(()),
+                //     }
+                // },
                 else => break,
             };
             match result {

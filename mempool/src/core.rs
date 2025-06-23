@@ -261,7 +261,7 @@ impl Core {
                     .collect();
     
                 for x in &pes_digests {
-                    self.opt_own_queue.remove(x);  // 去重
+                    self.pes_own_queue.remove(x);  // 去重
                 }
                 digests.extend(pes_digests);  // 直接追加已克隆的 digests
                 payload_len -= digests.len(); // 减去实际添加的数量
@@ -275,7 +275,7 @@ impl Core {
                 .collect();
     
             for x in &pes_other_digests {
-                self.opt_other_queue.remove(x); // 去重
+                self.pes_other_queue.remove(x); // 去重
             }
     
             digests.extend(pes_other_digests);

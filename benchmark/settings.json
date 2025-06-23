@@ -12,7 +12,7 @@
     "repo": {
         "name": "my-parbft",
         "url": "https://github.com/DGJGzy/my-parbft.git",
-        "branch": "master"
+        "branch": "test1"
     },
     "instances": {
         "type": "m5d.xlarge",

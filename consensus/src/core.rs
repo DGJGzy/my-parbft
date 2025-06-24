@@ -763,6 +763,7 @@ impl Core {
         value: SPBValue,
         proof: SPBProof,
     ) -> ConsensusResult<()> {
+        let start = Instant::now();
         //check message is timeout?
 
         ensure!(
@@ -791,6 +792,7 @@ impl Core {
         }
 
         self.process_spb_propose(&value, &proof).await?;
+        debug!("handle spb proposal time: {:?}", start.elapsed());
         Ok(())
     }
 
@@ -1929,7 +1931,7 @@ impl Core {
                 },
                 Some(message) = self.smvba_channel.recv() => {
                     match message {
-                        ConsensusMessage::SPBPropose(value,proof)=> self.handle_spb_proposal(value,proof).await,
+                        ConsensusMessage::SPBPropose(value,proof) => self.handle_spb_proposal(value,proof).await,
                         ConsensusMessage::SPBVote(vote)=> self.handle_spb_vote(&vote).await,
                         ConsensusMessage::SPBFinsh(value,proof)=> self.handle_spb_finish(value,proof).await,
                         ConsensusMessage::SPBDone(done) => self.handle_smvba_done(done).await,

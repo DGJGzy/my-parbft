@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::time::Instant;
 use thiserror::Error;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -77,6 +78,7 @@ impl NetSender {
             };
             let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
             while let Some(message) = rx.recv().await {
+                let start = Instant::now();
                 //如果有消息就发送给对方
                 match transport.send(message).await {
                     Ok(_) => debug!("Successfully sent message to {}", address),
@@ -85,6 +87,7 @@ impl NetSender {
                         return;
                     }
                 }
+                debug!("send message time: {:?}", start.elapsed());
             }
         });
         tx
@@ -132,6 +135,7 @@ impl<Message: 'static + Send + DeserializeOwned + Debug> NetReceiver<Message> {
         tokio::spawn(async move {
             let mut transport = Framed::new(socket, LengthDelimitedCodec::new());
             while let Some(frame) = transport.next().await {
+                let start = Instant::now();
                 match frame
                     .map_err(NetworkError::from)
                     .and_then(|x| bincode::deserialize(&x).map_err(NetworkError::from))
@@ -148,6 +152,7 @@ impl<Message: 'static + Send + DeserializeOwned + Debug> NetReceiver<Message> {
                         return;
                     }
                 }
+                debug!("message des time: {:?}", start.elapsed());
             }
             warn!("Connection closed by peer {}", peer);
         });

@@ -28,7 +28,9 @@ def local(ctx):
             'ddos': False, # True for DDoS attack on the leader, False otherwise
             'random_ddos': False,
             'random_ddos_chance': 5,
-            'exp': 0 # multiplicative factor for exponential fallback
+            'exp': 0, # multiplicative factor for exponential fallback
+            'unstable_ddos': False,
+            'unstable_delay': 50,
         },
         'mempool': {
             'queue_capacity': 100_000,
@@ -103,35 +105,37 @@ def install(ctx):
 def remote(ctx):
     ''' Run benchmarks on AWS '''
     bench_params = {
-        'nodes': [7],
-        'rate': [80000, 100000],
-        'tx_size': 256,
+        'nodes': [16],
+        'rate': [85000, 100000, 320000],
+        'tx_size': 16,
         'faults': 0, 
         'duration': 100,
         'runs': 1,
     }
     node_params = {
         'consensus': {
-            'timeout_delay': 10_000,
+            'timeout_delay': 5000,
             'sync_retry_delay': 100_000,
             'max_payload_size': 1_000,
-            'min_block_delay': 25,
-            'network_delay': 20_000, # message delay on the leaders' proposals during DDoS
+            'min_block_delay': 100,
+            'network_delay': 600, # message delay on the leaders' proposals during DDoS
             'ddos': False, # True for DDoS attack on the leader, False otherwise
             'random_ddos': False,
-            'random_ddos_chance': 20,
-            'exp': 0 # multiplicative factor for exponential fallback
+            'random_ddos_chance': 0,
+            'exp': 0, # multiplicative factor for exponential fallback
+            'unstable_ddos': False,
+            'unstable_delay': 500,
         },
         'mempool': {
             'queue_capacity': 100_000,
             'sync_retry_delay': 100_000,
-            'max_payload_size': 256_000,
-            'min_block_delay': 25
+            'max_payload_size': 15_625,
+            'min_block_delay': 100
         },
         'protocol': 1, # 0 for 2-chain HotStuff, 1 for Ditto, 2 for 2-chain VABA
     }
     try:
-        Bench(ctx).run(bench_params, node_params, debug=True)
+        Bench(ctx).run(bench_params, node_params, debug=False)
     except BenchError as e:
         Print.error(e)
 

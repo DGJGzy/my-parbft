@@ -7,6 +7,7 @@ use crypto::PublicKey;
 
 pub type LeaderElector = RandomLeaderElector;
 
+#[derive(Clone)]
 pub struct RandomLeaderElector {
     committee: Committee,
     random_coins: HashMap<(SeqNumber, SeqNumber), RandomCoin>,

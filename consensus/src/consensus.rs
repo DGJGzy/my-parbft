@@ -101,6 +101,7 @@ impl Consensus {
             tx_network,
             tx_net_smvba,
             parameters.clone(),
+            leader_elector.clone(),
         ); //对消息进行延迟
 
         // Make the synchronizer. This instance runs in a background thread

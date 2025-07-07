@@ -105,9 +105,9 @@ def install(ctx):
 def remote(ctx):
     ''' Run benchmarks on AWS '''
     bench_params = {
-        'nodes': [16],
-        'rate': [85000, 100000, 320000],
-        'tx_size': 16,
+        'nodes': [7],
+        'rate': [5000, 10000, 15000],
+        'tx_size': 256,
         'faults': 0, 
         'duration': 100,
         'runs': 1,
@@ -118,8 +118,8 @@ def remote(ctx):
             'sync_retry_delay': 100_000,
             'max_payload_size': 1_000,
             'min_block_delay': 100,
-            'network_delay': 600, # message delay on the leaders' proposals during DDoS
-            'ddos': False, # True for DDoS attack on the leader, False otherwise
+            'network_delay': 20000, # message delay on the leaders' proposals during DDoS
+            'ddos': True, # True for DDoS attack on the leader, False otherwise
             'random_ddos': False,
             'random_ddos_chance': 0,
             'exp': 0, # multiplicative factor for exponential fallback
@@ -129,8 +129,8 @@ def remote(ctx):
         'mempool': {
             'queue_capacity': 100_000,
             'sync_retry_delay': 100_000,
-            'max_payload_size': 15_625,
-            'min_block_delay': 100
+            'max_payload_size': 256_000,
+            'min_block_delay': 50
         },
         'protocol': 1, # 0 for 2-chain HotStuff, 1 for Ditto, 2 for 2-chain VABA
     }

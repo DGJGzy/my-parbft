@@ -63,11 +63,11 @@ impl Filter {
                 sleep(Duration::from_millis(parameters.unstable_delay)).await;
             }
         }
-        // if let ConsensusMessage::SPBPropose(value, _) = message {
-        //     if parameters.unstable_ddos && leader_elector.get_leader(value.block.epoch) != leader_elector.get_leader(1) {
-        //         sleep(Duration::from_millis(parameters.unstable_delay)).await;
-        //     }
-        // }
+        if let ConsensusMessage::SPBPropose(value, _) = message {
+            if parameters.unstable_ddos && leader_elector.get_leader(value.block.epoch) != leader_elector.get_leader(1) {
+                sleep(Duration::from_millis(parameters.unstable_delay)).await;
+            }
+        }
         input
     }
 }

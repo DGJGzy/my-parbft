@@ -1,5 +1,7 @@
 from datetime import datetime
+from itertools import zip_longest
 from os import error
+import boto3
 from fabric import Connection, ThreadingGroup as Group
 from fabric.exceptions import GroupException
 from paramiko import RSAKey
@@ -51,36 +53,144 @@ class Bench:
             if output.stderr:
                 raise ExecutionError(output.stderr)
 
+    # def install(self):
+    #     Print.info('Installing rust and cloning the repo...')
+    #     cmd = [
+    #         'sudo apt-get update',
+    #         'sudo apt-get -y upgrade',
+    #         'sudo apt-get -y autoremove',
+
+    #         # The following dependencies prevent the error: [error: linker `cc` not found].
+    #         'sudo apt-get -y install build-essential',
+    #         'sudo apt-get -y install cmake',
+
+    #         # Install rust (non-interactive).
+    #         'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',
+    #         'source $HOME/.cargo/env',
+    #         'rustup default stable',
+
+    #         # This is missing from the Rocksdb installer (needed for Rocksdb).
+    #         'sudo apt-get install -y clang',
+
+    #         # Clone the repo.
+    #         f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull))'
+    #     ]
+    #     hosts = self.manager.hosts(flat=True)
+    #     try:
+    #         g = Group(*hosts, user='ubuntu', connect_kwargs=self.connect)
+    #         g.run(' && '.join(cmd), hide=False)
+    #         Print.heading(f'Initialized testbed of {len(hosts)} nodes')
+    #     except (GroupException, ExecutionError) as e:
+    #         e = FabricError(e) if isinstance(e, GroupException) else e
+    #         raise BenchError('Failed to install repo on testbed', e)
+    
     def install(self):
         Print.info('Installing rust and cloning the repo...')
         cmd = [
             'sudo apt-get update',
             'sudo apt-get -y upgrade',
             'sudo apt-get -y autoremove',
-
+            
             # The following dependencies prevent the error: [error: linker `cc` not found].
             'sudo apt-get -y install build-essential',
             'sudo apt-get -y install cmake',
-
+            
             # Install rust (non-interactive).
             'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',
             'source $HOME/.cargo/env',
             'rustup default stable',
-
+            
             # This is missing from the Rocksdb installer (needed for Rocksdb).
             'sudo apt-get install -y clang',
-
+            
             # Clone the repo.
             f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull))'
         ]
+        
         hosts = self.manager.hosts(flat=True)
+        print(hosts)
+        
+        successful_hosts = []
+        failed_hosts = []
+        
+        g = Group(*hosts, user='ubuntu', connect_kwargs=self.connect)
+        
         try:
-            g = Group(*hosts, user='ubuntu', connect_kwargs=self.connect)
-            g.run(' && '.join(cmd), hide=False)
-            Print.heading(f'Initialized testbed of {len(hosts)} nodes')
-        except (GroupException, ExecutionError) as e:
-            e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to install repo on testbed', e)
+            # 添加warn=True让失败的主机不影响其他主机
+            results = g.run(' && '.join(cmd), hide=False, warn=True)
+            # 如果没有异常，说明所有主机都成功了
+            successful_hosts = [conn.host for conn in results.keys()]
+            
+        except GroupException as e:
+            # GroupException的result属性包含GroupResult对象
+            group_result = e.result
+            
+            # 使用succeeded和failed属性来区分成功和失败的主机
+            for conn, result in group_result.succeeded.items():
+                successful_hosts.append(conn.host)
+                
+            for conn, result in group_result.failed.items():
+                failed_hosts.append(conn.host)
+                    
+        except Exception as e:
+            # 其他类型的异常，所有主机都失败
+            failed_hosts = hosts.copy()
+            e = FabricError(e)
+            if not hosts:  # 如果没有主机，直接抛出异常
+                raise BenchError('Failed to install repo on testbed', e)
+        
+        # 输出结果
+        if successful_hosts:
+            Print.heading(f'Initialized testbed of {len(successful_hosts)} nodes')
+            Print.info(f'Successful hosts: {successful_hosts}')
+        
+        if failed_hosts:
+            Print.warn(f'Failed hosts ({len(failed_hosts)}): {failed_hosts}')
+
+            # 停止失败的实例
+            Print.info(f'Stopping {len(failed_hosts)} failed instances...')
+            stopped_count = 0
+            
+            for region in self.settings.aws_regions:
+                client = boto3.client('ec2', region_name=region)
+                region_instance_ids = []
+                
+                for host in failed_hosts:
+                    try:
+                        # 通过IP查找实例
+                        response = client.describe_instances(
+                            Filters=[
+                                {'Name': 'ip-address', 'Values': [host]},
+                                {'Name': 'instance-state-name', 'Values': ['running']}
+                            ]
+                        )
+                        
+                        # 提取实例ID
+                        for reservation in response['Reservations']:
+                            for instance in reservation['Instances']:
+                                region_instance_ids.append(instance['InstanceId'])
+                                
+                    except Exception as ex:
+                        Print.warn(f'Failed to find instance for host {host}: {str(ex)}')
+                        continue
+                
+                # 停止找到的实例
+                if region_instance_ids:
+                    try:
+                        client.stop_instances(InstanceIds=region_instance_ids)
+                        stopped_count += len(region_instance_ids)
+                        Print.info(f'Stopped {len(region_instance_ids)} instances in region {region}')
+                    except Exception as ex:
+                        Print.warn(f'Failed to stop instances in region {region}: {str(ex)}')
+            
+            if stopped_count > 0:
+                Print.heading(f'Stopped {stopped_count} failed instances')
+            else:
+                Print.warn('No running instances found to stop')
+    
+        # 只有在所有主机都失败时才抛出异常
+        if not successful_hosts:
+            raise BenchError('Failed to install repo on testbed', FabricError('All hosts failed'))
 
     def kill(self, hosts=[], delete_logs=False):
         assert isinstance(hosts, list)
@@ -103,8 +213,8 @@ class Bench:
             return []
 
         # Select the hosts in different data centers.
-        ordered = zip(*hosts.values())
-        ordered = [x for y in ordered for x in y]
+        ordered = zip_longest(*hosts.values())
+        ordered = [x for y in ordered for x in y if x is not None]
         return ordered[:nodes]
 
     def _background_run(self, host, command, log_file):
@@ -246,7 +356,8 @@ class Bench:
 
         # Wait for the nodes to synchronize
         Print.info('Waiting for the nodes to synchronize...')
-
+        sleep(16 * 3)
+        
         # Wait for all transactions to be processed.
         duration = bench_parameters.duration
         for _ in progress_bar(range(100), prefix=f'Running benchmark ({duration} sec):'):

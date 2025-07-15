@@ -1849,6 +1849,9 @@ impl Core {
         let mut epoch = 0u64;
         loop {
             info!("---------------Epoch Run {}------------------", self.epoch);
+            debug!("leader: {}", self.leader_elector.get_leader(self.height));
+            debug!("name: {}", self.name);
+            debug!("opt_path: {}", self.opt_path);
             self.run().await; //运行当前epoch
             epoch += 1;
             self.epoch_init(epoch);

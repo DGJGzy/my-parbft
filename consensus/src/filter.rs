@@ -54,7 +54,7 @@ impl Filter {
                 && rand::thread_rng().gen_bool((parameters.random_ddos_chance as f64) / 100.0)
             {
                 sleep(Duration::from_millis(parameters.network_delay)).await;
-            } else if parameters.ddos {
+            } else if parameters.ddos && parameters.random_ddos_chance > 0 {
                 sleep(Duration::from_millis(parameters.network_delay)).await;
             } 
             if parameters.ddos && parameters.random_ddos_chance == 0 {

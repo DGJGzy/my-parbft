@@ -56,6 +56,10 @@ impl Filter {
                 sleep(Duration::from_millis(parameters.network_delay)).await;
             } else if parameters.ddos {
                 sleep(Duration::from_millis(parameters.network_delay)).await;
+            } 
+            if parameters.ddos && parameters.random_ddos_chance == 0 {
+                let delay_ms = 500 + rand::thread_rng().gen::<u64>() % 500;
+                sleep(Duration::from_millis(delay_ms)).await;
             }
         }
         input

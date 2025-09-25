@@ -62,6 +62,14 @@ impl Filter {
                 sleep(Duration::from_millis(delay_ms)).await;
             }
         }
+        if let ConsensusMessage::SPBPropose(..) = message {
+            // NOTE: Increase the delay here (you can use any value from the 'parameters').
+            // Only add network delay for non-fallback block proposals
+            if parameters.ddos && parameters.random_ddos_chance == 0 {
+                let delay_ms = 500 + rand::thread_rng().gen::<u64>() % 500;
+                sleep(Duration::from_millis(delay_ms)).await;
+            }
+        }
         input
     }
 }

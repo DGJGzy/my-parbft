@@ -1,7 +1,7 @@
 {
     "key": {
         "name": "DGJG",
-        "path": "/Users/dgjg/.ssh/aws"
+        "path": "/home/ubuntu/.ssh/aws"
     },
     "ports": {
         "smvba": 9000,
@@ -12,7 +12,7 @@
     "repo": {
         "name": "my-parbft",
         "url": "https://github.com/DGJGzy/my-parbft.git",
-        "branch": "review1"
+        "branch": "ec2"
     },
     "instances": {
         "type": "m5d.xlarge",

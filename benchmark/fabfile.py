@@ -12,11 +12,11 @@ from aws.remote import Bench, BenchError
 def local(ctx):
     ''' Run benchmarks on localhost '''
     bench_params = {
-        'nodes': 10,
+        'nodes': 7,
         'rate': 40_000,
         'tx_size': 16,
         'faults': 0,
-        'duration': 10,
+        'duration': 150,
     }
     node_params = {
         'consensus': {
@@ -24,7 +24,7 @@ def local(ctx):
             'sync_retry_delay': 10_000,
             'max_payload_size': 1_000,
             'min_block_delay': 0,
-            'network_delay': 60_000, # message delay on the leaders' proposals during DDoS
+            'network_delay': 30_000, # message delay on the leaders' proposals during DDoS
             'ddos': False, # True for DDoS attack on the leader, False otherwise
             'random_ddos': False,
             'random_ddos_chance': 5,
@@ -46,7 +46,7 @@ def local(ctx):
 
 
 @task
-def create(ctx, nodes=6): # 创建机器实例  nodes表示在一台机器上跑多少个节点
+def create(ctx, nodes=2): # 创建机器实例  nodes表示在一台机器上跑多少个节点
     ''' Create a testbed'''
     try:
         InstanceManager.make().create_instances(nodes)
@@ -103,8 +103,8 @@ def install(ctx):
 def remote(ctx):
     ''' Run benchmarks on AWS '''
     bench_params = {
-        'nodes': [28],
-        'rate': [20000, 30000],
+        'nodes': [7],
+        'rate': [20000, 40000, 60000, 80000, 100000, 140000],
         'tx_size': 256,
         'faults': 0, 
         'duration': 100,
@@ -116,10 +116,10 @@ def remote(ctx):
             'sync_retry_delay': 100_000,
             'max_payload_size': 1_000,
             'min_block_delay': 100,
-            'network_delay': 20_000, # message delay on the leaders' proposals during DDoS
-            'ddos': True, # True for DDoS attack on the leader, False otherwise
+            'network_delay': 30_000, # message delay on the leaders' proposals during DDoS
+            'ddos': False, # True for DDoS attack on the leader, False otherwise
             'random_ddos': False,
-            'random_ddos_chance': 0,
+            'random_ddos_chance': 5,
             'exp': 0 # multiplicative factor for exponential fallback
         },
         'mempool': {

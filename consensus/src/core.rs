@@ -40,7 +40,7 @@ pub const INIT_PHASE: u8 = 0;
 pub const LOCK_PHASE: u8 = 1;
 pub const FIN_PHASE: u8 = 2;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ConsensusMessage {
     HsPropose(Block),
     HSVote(HVote),
@@ -1311,8 +1311,7 @@ impl Core {
         }
 
         self.broadcast_pes_propose(block, proof)
-            .await
-            .expect("Failed to send the PES block");
+            .await?;
         Ok(())
     }
 

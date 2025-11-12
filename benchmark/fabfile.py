@@ -107,7 +107,7 @@ def remote(ctx):
         'rate': [20000, 40000, 60000, 80000, 100000, 140000],
         'tx_size': 256,
         'faults': 0, 
-        'duration': 100,
+        'duration': 150,
         'runs': 1,
     }
     node_params = {

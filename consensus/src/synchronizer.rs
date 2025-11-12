@@ -191,8 +191,18 @@ impl Synchronizer {
         if let Err(e) = network_filter.send((message.clone(), addresses, false)).await {
             panic!("Failed to send block through network channel: {}", e);
         }
-        if let Err(e) = network_filter.send((message, deleted_addresses, true)).await {
-            panic!("Failed to send block through network channel: {}", e);
+        if deleted_addresses.is_empty() {
+            return Ok(());
+        }
+        // check message type: HsPropose, SPBPropose, HsVote, SPBVote
+        match &message {
+            ConsensusMessage::HsPropose(_) | ConsensusMessage::SPBPropose(_, _) |
+            ConsensusMessage::HSVote(_) | ConsensusMessage::SPBVote(_) => {
+                if let Err(e) = network_filter.send((message, deleted_addresses, true)).await {
+                    panic!("Failed to send block through network channel: {}", e);
+                }
+            }
+            _ => {}
         }
         Ok(())
     }

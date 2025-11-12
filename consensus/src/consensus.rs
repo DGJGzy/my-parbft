@@ -162,7 +162,7 @@ impl Consensus {
                     tx_filter_smvba,
                     /* commit_channel */ tx_commit,
                     true,
-                    true,
+                    false,
                 );
                 tokio::spawn(async move {
                     opt_with_pes_path.run_epoch().await;
